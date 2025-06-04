@@ -4,21 +4,17 @@ from datetime import datetime
  
 st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
 
-# 📌 Tunjuk logo
-logo = Image.open("logo.png")
-st.image(logo, width=150)
- 
 st.title("📦 FBK Delivery / Requisition Form")
- 
+
 # Form Details
-st.subheader("Header")
+st.subheader("FBK MANUFACTURING MALAYSIA")
 col1, col2, col3 = st.columns(3)
 with col1:
     do_no = st.text_input("DO No", value="")
 with col2:
     date = st.date_input("Date", value=datetime.today())
 with col3:
-    from_to = st.selectbox("From → To", ["STORE → STORE", "BS PACKING → LOGISTIC", "DP PACKING → QC", "OFFICE → TPM"])
+    from_to = st.selectbox("From → To", ["STORE → STORE", "BS PACKING → LOGISTIC", "DP PACKING → LOGISTIC", "OFFICE → TPM"])
  
 st.markdown("---")
 st.subheader("Item Details (up to 20 rows)")
