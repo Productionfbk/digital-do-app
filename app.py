@@ -1,149 +1,144 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import os
+from datetime import date, datetime
 
-# SET PAGE CONFIG MESTI PALING AWAL
-st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
+# Konfigurasi halaman
+st.set_page_config(page_title="Digital DO Form - FBKM", layout="wide")
 
-# --- User Credentials ---
-USER_CREDENTIALS = {
-    "firdaus": "D0499",
-    "vijaya": "D0228",
-    "asrin": "D0489",
-    "sazli": "D0039",
-    "Eddy": "D0290"
-}
+# Tajuk utama
+st.title("🚚 Digital Delivery Order (DO) FBKM")
 
-# --- Login function ---
-def login():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
+# -------------------------------------------------------
+# Fungsi jana DO number secara auto: DO-0001, DO-0002...
+# -------------------------------------------------------
+def generate_do_number():
+    csv_path = "do_data.csv"
+    if os.path.exists(csv_path):
+        try:
+            df_existing = pd.read_csv(csv_path)
+            if not df_existing.empty and "DO Number" in df_existing.columns:
+                last_do = df_existing["DO Number"].iloc[-1]
+                try:
+                    last_num = int(last_do.split("-")[1])
+                    return f"DO-{last_num + 1:04d}"
+                except:
+                    return "DO-0001"
+        except pd.errors.EmptyDataError:
+            return "DO-0001"
+        except Exception:
+            return "DO-0001"
+    return "DO-0001"
 
-    if not st.session_state.logged_in:
-        st.subheader("🔐 Leader Login Required")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Login"):
-            if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.success(f"✅ Welcome, {username}!")
-                st.experimental_rerun()
-            else:
-                st.error("❌ Invalid username or password.")
-        st.stop()  # Stop further execution if not logged in
-    else:
-        # Show logout and user info
-        st.sidebar.write(f"👤 Logged in as: **{st.session_state.username}**")
-        if st.sidebar.button("Logout"):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.experimental_rerun()
+# Jana DO number
+do_number = generate_do_number()
 
-# --- Delivery Order Number Generator ---
-def get_next_do_no():
-    counter_file = "do_counter.txt"
-    if not os.path.exists(counter_file):
-        with open(counter_file, "w") as f:
-            f.write("1000")
-    with open(counter_file, "r") as f:
-        last = int(f.read().strip())
-    next_do = last + 1
-    with open(counter_file, "w") as f:
-        f.write(str(next_do))
-    return f"DO{next_do:04d}"
+# -------------------------------------------------------
+# Borang Utama
+# -------------------------------------------------------
+with st.form("do_form"):
+    st.subheader("📄 Maklumat Delivery Order")
 
-# --- Reset form ---
-def reset_form():
-    for i in range(1, 21):
-        for key in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
-            st.session_state.pop(f"{key}_{i}", None)
-    for key in ["prepared", "checked", "approved", "time"]:
-        st.session_state.pop(key, None)
-    st.session_state.do_no = get_next_do_no()
-    st.experimental_rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input("DO Number", value=do_number, disabled=True)
+    with col2:
+        do_date = st.date_input("DO Date", value=date.today())
 
-# --- MAIN ---
-login()  # call login first, stops if not logged in
+    customer_name = st.text_input("Customer Name")
 
-# Initialize DO number
-if "do_no" not in st.session_state:
-    st.session_state.do_no = get_next_do_no()
+    st.markdown("---")
+    st.subheader("📦 Item Details (maksimum 20 baris)")
 
-st.title("📦 FBK Delivery / Requisition Form")
+    # Sediakan template kosong untuk 20 item
+    default_items = {
+        "No.": list(range(1, 21)),
+        "Item": [""] * 20,
+        "MI Number": [""] * 20,
+        "C/P No.": [""] * 20,
+        "Set": [0] * 20,
+        "Ctn": [0] * 20,
+        "Quantity": [0] * 20
+    }
+    item_df = pd.DataFrame(default_items)
 
-# Header input
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.text_input("DO No", value=st.session_state.do_no, disabled=True)
-with col2:
-    date = st.date_input("Date", value=datetime.today())
-with col3:
-    from_to = st.selectbox("From → To", [
-        "STORE → STORE",
-        "BS PACKING → LOGISTIC",
-        "DP PACKING → LOGISTIC",
-        "OFFICE → TPM"
-    ])
+    # Papar borang table editable dengan index tersembunyi
+    edited_df = st.data_editor(
+        item_df,
+        num_rows="fixed",
+        use_container_width=True,
+        hide_index=True
+    )
 
-st.markdown("---")
-st.subheader("Item Details (up to 20 rows)")
-rows = []
-for i in range(1, 21):
-    with st.expander(f"Item Row {i}"):
-        item = st.text_input(f"Scan or Enter Item {i}", key=f"item_{i}")
-        ref_no = st.text_input(f"Reference No {i}", key=f"ref_{i}")
-        cp_no = st.text_input(f"C/P No {i}", key=f"cp_{i}")
-        unit_set = st.text_input(f"Unit Packing (Set) {i}", key=f"set_{i}")
-        unit_ctn = st.text_input(f"Unit Packing (CTN) {i}", key=f"ctn_{i}")
-        quantity = st.text_input(f"Quantity {i}", key=f"qty_{i}")
-        remarks = st.text_input(f"Remarks {i}", key=f"remark_{i}")
+    # Butang Submit & Clear
+    col_submit, col_clear = st.columns(2)
+    with col_submit:
+        submitted = st.form_submit_button("🚀 Submit DO")
+    with col_clear:
+        reset = st.form_submit_button("🔄 Clear Form")
 
-        if item:
-            rows.append({
-                "Item": item,
-                "Reference No": ref_no,
-                "C/P No": cp_no,
-                "Unit Packing Set": unit_set,
-                "Unit Packing CTN": unit_ctn,
-                "Quantity": quantity,
-                "Remarks": remarks
-            })
+    # Reset form bila tekan Clear
+    if reset:
+        st.experimental_rerun()
 
-st.markdown("---")
-st.subheader("Footer Information")
-prepared = st.text_input("Prepared by", key="prepared")
-checked = st.text_input("Checked by", key="checked")
-approved = st.text_input("Approved by", key="approved")
-time_input = st.time_input("Time", key="time")
+    # Bila user tekan Submit
+    if submitted:
+        valid_rows = []
+        for _, row in edited_df.iterrows():
+            if row["Item"].strip() != "" and row["Quantity"] > 0:
+                valid_rows.append(row)
 
-col_submit, col_reset = st.columns([1, 1])
-with col_submit:
-    if st.button("✅ Submit DO Form", key="submit_do"):
-        if not rows:
-            st.error("Please fill at least one item.")
+        if not valid_rows:
+            st.warning("⚠️ Sila isi sekurang-kurangnya satu item dengan kuantiti lebih daripada 0.")
         else:
-            df = pd.DataFrame(rows)
-            df["DO No"] = st.session_state.do_no
-            df["Date"] = date.strftime('%Y-%m-%d')
-            df["From→To"] = from_to
-            df["Prepared By"] = prepared
-            df["Checked By"] = checked
-            df["Approved By"] = approved
-            df["Time"] = time_input.strftime('%H:%M:%S')
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            rows_to_save = []
+            for row in valid_rows:
+                record = {
+                    "Timestamp": timestamp,
+                    "DO Number": do_number,
+                    "DO Date": do_date.strftime("%Y-%m-%d"),
+                    "Customer Name": customer_name,
+                    "No.": int(row["No."]),
+                    "Item": row["Item"],
+                    "MI Number": row["MI Number"],
+                    "C/P No.": row["C/P No."],
+                    "Set": int(row["Set"]),
+                    "Ctn": int(row["Ctn"]),
+                    "Quantity": int(row["Quantity"])
+                }
+                rows_to_save.append(record)
 
-            output_folder = "do_output"
-            os.makedirs(output_folder, exist_ok=True)
-            filename = os.path.join(output_folder, f"do_{st.session_state.do_no}.csv")
-            df.to_csv(filename, index=False)
+            df_to_save = pd.DataFrame(rows_to_save)
+            csv_path = "do_data.csv"
+            file_exists = os.path.exists(csv_path)
+            df_to_save.to_csv(csv_path, mode="a", header=not file_exists, index=False)
 
-            st.success(f"✅ Delivery Order {st.session_state.do_no} submitted successfully.")
-            st.info(f"Saved to `{filename}`")
-            st.dataframe(df)
+            st.success("✅ DO submitted and saved successfully!")
+            st.markdown("### 📄 DO Summary:")
+            st.write(f"**DO Number:** {do_number}")
+            st.write(f"**DO Date:** {do_date.strftime('%Y-%m-%d')}")
+            st.write(f"**Customer Name:** {customer_name}")
+            st.write("#### Items:")
+            st.dataframe(df_to_save, use_container_width=True)
 
-            reset_form()
+# -------------------------------------------------------
+# Papar semua rekod yang pernah dihantar
+# -------------------------------------------------------
+st.markdown("---")
+st.subheader("📋 Semua Rekod DO")
 
-with col_reset:
-    if st.button("🔄 Reset Form"):
-        reset_form()
+csv_path = "do_data.csv"
+if os.path.exists(csv_path):
+    try:
+        df_all = pd.read_csv(csv_path)
+        if not df_all.empty:
+            st.dataframe(df_all, use_container_width=True)
+        else:
+            st.info("Tiada DO dihantar lagi.")
+    except pd.errors.EmptyDataError:
+        st.info("Tiada DO dihantar lagi.")
+    except Exception as e:
+        st.error(f"❌ Ralat membaca fail CSV: {e}")
+else:
+    st.info("Tiada DO dihantar lagi.")
