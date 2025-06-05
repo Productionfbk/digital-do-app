@@ -103,5 +103,52 @@ if st.button("✅ Submit DO Form"):
         st.success(f"DO saved as {filename} ✅")
         st.dataframe(df)
  
-        reset_form()
+        # Reset form function
+def reset_form():
+    st.session_state["reset_trigger"] = True
+    st.rerun()
+ 
+# Form rendering block
+if "reset_trigger" in st.session_state:
+    # Do the reset before showing widgets
+    for i in range(1, 21):
+        st.session_state[f"item_{i}"] = ""
+        st.session_state[f"ref_{i}"] = ""
+        st.session_state[f"cp_{i}"] = ""
+        st.session_state[f"set_{i}"] = ""
+        st.session_state[f"ctn_{i}"] = ""
+        st.session_state[f"qty_{i}"] = ""
+        st.session_state[f"remark_{i}"] = ""
+ 
+    st.session_state["prepared"] = ""
+    st.session_state["checked"] = ""
+    st.session_state["approved"] = ""
+    st.session_state["time"] = datetime.now().time()
+    st.session_state["do_no"] = get_next_do_no()
+ 
+    del st.session_state["reset_trigger"]  # Cleanup trigger
+    st.rerun()  # Rerun after full reset
+ 
+# Inside submit button logic
+if st.button("✅ Submit DO Form"):
+    if not rows:
+        st.error("Please fill at least one item.")
+    else:
+        df = pd.DataFrame(rows)
+        df["DO No"] = st.session_state.do_no
+        df["Date"] = date.strftime('%Y-%m-%d')
+        df["From→To"] = from_to
+        df["Prepared By"] = prepared
+        df["Checked By"] = checked
+        df["Approved By"] = approved
+        df["Time"] = time_input.strftime('%H:%M:%S')
+ 
+        filename = f"do_{st.session_state.do_no}.csv"
+        df.to_csv(filename, index=False)
+ 
+        st.success(f"DO saved as {filename} ✅")
+        st.dataframe(df)
+ 
+        reset_form()  # Set trigger to reset on next run
+ 
  
