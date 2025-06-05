@@ -6,32 +6,42 @@ import os
 st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
 st.title("📦 FBK Delivery / Requisition Form")
  
-# ---------- Auto-generate DO No ----------
+# Auto-generate DO number
 def get_next_do_no():
     counter_file = "do_counter.txt"
     if not os.path.exists(counter_file):
         with open(counter_file, "w") as f:
-            f.write("1001")
+            f.write("1000")
     with open(counter_file, "r") as f:
-        last_number = int(f.read().strip())
-    next_number = last_number + 1
+        last = int(f.read().strip())
+    next_do = last + 1
     with open(counter_file, "w") as f:
-        f.write(str(next_number))
-    return f"DO{next_number:04d}"
+        f.write(str(next_do))
+    return f"DO{next_do:04d}"
  
-if "do_no" not in st.session_state:
+# Initialize form states
+if "reset_done" not in st.session_state:
+    st.session_state.reset_done = False
     st.session_state.do_no = get_next_do_no()
  
-# ---------- Form Details ----------
+# Reset function (uses rerun trigger)
+def reset_form():
+    for i in range(1, 21):
+        for key in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
+            st.session_state[f"{key}_{i}"] = ""
+    for key in ["prepared", "checked", "approved", "time"]:
+        st.session_state[key] = ""
+    st.session_state.do_no = get_next_do_no()
+    st.session_state.reset_done = True
+    st.experimental_rerun()
+ 
+# Form header
 st.subheader("FBK MANUFACTURING MALAYSIA")
 col1, col2, col3 = st.columns(3)
- 
 with col1:
     st.text_input("DO No", value=st.session_state.do_no, disabled=True)
- 
 with col2:
     date = st.date_input("Date", value=datetime.today())
- 
 with col3:
     from_to = st.selectbox("From → To", [
         "STORE → STORE",
@@ -46,7 +56,7 @@ st.subheader("Item Details (up to 20 rows)")
 rows = []
 for i in range(1, 21):
     with st.expander(f"Item Row {i}"):
-        item = st.text_input(f"Scan or Enter Item (Barcode) {i}", key=f"item_{i}")
+        item = st.text_input(f"Scan or Enter Item {i}", key=f"item_{i}")
         ref_no = st.text_input(f"Reference No {i}", key=f"ref_{i}")
         cp_no = st.text_input(f"C/P No {i}", key=f"cp_{i}")
         unit_set = st.text_input(f"Unit Packing (Set) {i}", key=f"set_{i}")
@@ -65,16 +75,15 @@ for i in range(1, 21):
                 "Remarks": remarks
             })
  
-# ---------- Footer ----------
+# Footer
 st.markdown("---")
 st.subheader("Footer Information")
- 
 prepared = st.text_input("Prepared by", key="prepared")
 checked = st.text_input("Checked by", key="checked")
 approved = st.text_input("Approved by", key="approved")
-time_input = st.time_input("Time", key="time", value=datetime.now().time())
+time_input = st.time_input("Time", key="time")
  
-# ---------- Submit Button ----------
+# Submit button
 if st.button("✅ Submit DO Form"):
     if not rows:
         st.error("Please fill at least one item.")
@@ -94,13 +103,5 @@ if st.button("✅ Submit DO Form"):
         st.success(f"DO saved as {filename} ✅")
         st.dataframe(df)
  
-        # Reset all session states
-        for i in range(1, 21):
-            for key_prefix in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
-                st.session_state[f"{key_prefix}_{i}"] = ""
-        for key in ["prepared", "checked", "approved", "time"]:
-            st.session_state[key] = ""
- 
-        st.session_state.do_no = get_next_do_no()
-        st.experimental_rerun()
+        reset_form()
  
