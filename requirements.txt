@@ -1,2 +1,7 @@
+ini adalah percubaan saja dulu
+
+mari sini
+
+
 streamlit
 pandas
