@@ -107,6 +107,16 @@ if st.button("✅ Submit DO Form", key="submit_do"):
  
         st.success(f"DO saved as {filename} ✅")
         st.dataframe(df)
+
+        import streamlit as st
  
-        reset_form()
+def reset_form():
+    keys_to_reset = [key for key in st.session_state.keys() if key.startswith("item_") or key in ["do_number", "do_date", "from_location", "to_location", "prepared_by", "checked_by", "approved_by"]]
+    for key in keys_to_reset:
+        del st.session_state[key]  # gunakan del bukan assignment
+    st.rerun()  # paksa Streamlit rerun dari awal
+ 
+# Butang reset
+if st.button("Reset Form"):
+    reset_form()
  
