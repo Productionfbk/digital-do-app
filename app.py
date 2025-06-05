@@ -1,4 +1,11 @@
 import streamlit as st
+
+# Tukar title & icon tab
+st.set_page_config(
+    page_title="Delivery Order",
+    page_icon="favicon.png",  # Guna ikon sendiri
+    layout="wide"
+)
 import pandas as pd
 from datetime import datetime
 import os
