@@ -19,23 +19,31 @@ def get_next_do_no():
         f.write(str(next_do))
     return f"DO{next_do:04d}"
  
-# Initialize form state
-if "reset_done" not in st.session_state:
-    st.session_state.reset_done = False
+# Initialize DO number if not already set
+if "do_no" not in st.session_state:
     st.session_state.do_no = get_next_do_no()
  
-# Reset function
+# 🧹 Reset Form Function
 def reset_form():
+    # Reset item rows
     for i in range(1, 21):
         for key in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
-            st.session_state[f"{key}_{i}"] = ""
+            session_key = f"{key}_{i}"
+            if session_key in st.session_state:
+                del st.session_state[session_key]
+    
+    # Reset footer
     for key in ["prepared", "checked", "approved", "time"]:
-        st.session_state[key] = ""
-    st.session_state.do_no = get_next_do_no()
-    st.session_state.reset_done = True
-    st.experimental_rerun()
+        if key in st.session_state:
+            del st.session_state[key]
  
-# Header
+    # Reset DO number
+    st.session_state.do_no = get_next_do_no()
+ 
+    st.rerun()
+ 
+# ──────────────────────────────
+# Header Info
 st.subheader("FBK MANUFACTURING MALAYSIA")
 col1, col2, col3 = st.columns(3)
  
@@ -53,9 +61,10 @@ with col3:
         "OFFICE → TPM"
     ])
  
+# ──────────────────────────────
+# Item Input Section
 st.markdown("---")
 st.subheader("Item Details (up to 20 rows)")
- 
 rows = []
  
 for i in range(1, 21):
@@ -79,44 +88,38 @@ for i in range(1, 21):
                 "Remarks": remarks
             })
  
-# Footer
+# ──────────────────────────────
+# Footer Info
 st.markdown("---")
 st.subheader("Footer Information")
- 
 prepared = st.text_input("Prepared by", key="prepared")
 checked = st.text_input("Checked by", key="checked")
 approved = st.text_input("Approved by", key="approved")
 time_input = st.time_input("Time", key="time")
  
-# Submit button
-if st.button("✅ Submit DO Form", key="submit_do"):
-    if not rows:
-        st.error("Please fill at least one item.")
-    else:
-        df = pd.DataFrame(rows)
-        df["DO No"] = st.session_state.do_no
-        df["Date"] = date.strftime('%Y-%m-%d')
-        df["From→To"] = from_to
-        df["Prepared By"] = prepared
-        df["Checked By"] = checked
-        df["Approved By"] = approved
-        df["Time"] = time_input.strftime('%H:%M:%S')
+# ──────────────────────────────
+# Buttons
+col_submit, col_reset = st.columns([1, 1])
+with col_submit:
+    if st.button("✅ Submit DO Form", key="submit_do"):
+        if not rows:
+            st.error("Please fill at least one item.")
+        else:
+            df = pd.DataFrame(rows)
+            df["DO No"] = st.session_state.do_no
+            df["Date"] = date.strftime('%Y-%m-%d')
+            df["From→To"] = from_to
+            df["Prepared By"] = prepared
+            df["Checked By"] = checked
+            df["Approved By"] = approved
+            df["Time"] = time_input.strftime('%H:%M:%S')
  
-        filename = f"do_{st.session_state.do_no}.csv"
-        df.to_csv(filename, index=False)
+            filename = f"do_{st.session_state.do_no}.csv"
+            df.to_csv(filename, index=False)
  
-        st.success(f"DO saved as {filename} ✅")
-        st.dataframe(df)
-
-        import streamlit as st
+            st.success(f"DO saved as {filename} ✅")
+            st.dataframe(df)
  
-def reset_form():
-    keys_to_reset = [key for key in st.session_state.keys() if key.startswith("item_") or key in ["do_number", "do_date", "from_location", "to_location", "prepared_by", "checked_by", "approved_by"]]
-    for key in keys_to_reset:
-        del st.session_state[key]  # gunakan del bukan assignment
-    st.rerun()  # paksa Streamlit rerun dari awal
- 
-# Butang reset
-if st.button("Reset Form"):
-    reset_form()
- 
+with col_reset:
+    if st.button("🔄 Reset Form"):
+        reset_form()
