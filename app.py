@@ -84,7 +84,7 @@ approved = st.text_input("Approved by", key="approved")
 time_input = st.time_input("Time", key="time")
  
 # Submit button
-if st.button("✅ Submit DO Form"):
+if st.button("✅ Submit DO Form",key="submit_button"):
     if not rows:
         st.error("Please fill at least one item.")
     else:
