@@ -1,51 +1,28 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os
  
 st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
+ 
 st.title("📦 FBK Delivery / Requisition Form")
- 
-# Function untuk auto-generate DO number
-def get_next_do_number():
-    filename = "last_do.txt"
-    if not os.path.exists(filename):
-        with open(filename, "w") as f:
-            f.write("1")
-        return "DO0001"
-    else:
-        with open(filename, "r") as f:
-            content = f.read().strip()
-            if content == "":
-                current_no = 1
-            else:
-                current_no = int(content)
-        next_no = current_no + 1
-        with open(filename, "w") as f:
-            f.write(str(next_no))
-        return f"DO{next_no:04d}"
- 
-# Get DO number
-do_no = get_next_do_number()
- 
-# Form Details
 st.subheader("FBK MANUFACTURING MALAYSIA")
+ 
 col1, col2, col3 = st.columns(3)
  
 with col1:
-    st.text_input("DO No (Auto)", value=do_no, disabled=True)
+    do_no = st.text_input("DO No", key="do_no")
  
 with col2:
-    date = st.date_input("Date", value=datetime.today())
+    date = st.date_input("Date", value=datetime.today(), key="date")
  
 with col3:
-    from_to = st.selectbox("From → To", ["STORE → STORE", "BS PACKING → LOGISTIC", "DP PACKING → LOGISTIC", "OFFICE → TPM"])
+    from_to = st.selectbox("From → To", ["STORE → STORE", "BS PACKING → LOGISTIC", "DP PACKING → LOGISTIC", "OFFICE → TPM"], key="from_to")
  
 st.markdown("---")
 st.subheader("Item Details (up to 20 rows)")
  
-# Table Input
 rows = []
+ 
 for i in range(1, 21):
     with st.expander(f"Item Row {i}"):
         item = st.text_input(f"Scan or Enter Item (Barcode) {i}", key=f"item_{i}")
@@ -67,20 +44,22 @@ for i in range(1, 21):
                 "Remarks": remarks
             })
  
-# Footer Section
 st.markdown("---")
 st.subheader("Footer Information")
  
-prepared = st.text_input("Prepared by")
-checked = st.text_input("Checked by")
-approved = st.text_input("Approved by")
-time_input = st.time_input("Time")
+prepared = st.text_input("Prepared by", key="prepared")
+checked = st.text_input("Checked by", key="checked")
+approved = st.text_input("Approved by", key="approved")
+time_input = st.time_input("Time", key="time")
  
 # Submit Button
 if st.button("✅ Submit DO Form"):
     if not rows:
-        st.error("Please fill in at least one item.")
+        st.error("Please scan at least one item.")
     else:
+        if not do_no:
+            do_no = f"DO{datetime.now().strftime('%Y%m%d%H%M%S')}"
+ 
         df = pd.DataFrame(rows)
         df["DO No"] = do_no
         df["Date"] = date.strftime('%Y-%m-%d')
@@ -90,12 +69,13 @@ if st.button("✅ Submit DO Form"):
         df["Approved By"] = approved
         df["Time"] = time_input.strftime('%H:%M:%S')
  
-        filename = f"do_{do_no}.csv"
-        df.to_csv(filename, index=False)
+        df.to_csv(f"do_{do_no}.csv", index=False)
+        st.success(f"DO saved successfully as do_{do_no}.csv ✅")
  
-        st.success(f"✅ DO saved successfully as {filename}")
-        st.dataframe(df)
+        # Reset all input fields by clearing session_state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
  
-        # Reset form by rerunning app
         st.rerun()
+
  
