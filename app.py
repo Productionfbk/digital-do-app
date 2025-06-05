@@ -1,19 +1,13 @@
 import streamlit as st
-
-# Tukar title & icon tab
-st.set_page_config(
-    page_title="Delivery Order",
-    page_icon="favicon.png",  # Guna ikon sendiri
-    layout="wide"
-)
 import pandas as pd
 from datetime import datetime
 import os
- 
+
 st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
+
 st.title("📦 FBK Delivery / Requisition Form")
- 
-# Auto-generate DO number
+
+# Generate DO number
 def get_next_do_no():
     counter_file = "do_counter.txt"
     if not os.path.exists(counter_file):
@@ -25,41 +19,28 @@ def get_next_do_no():
     with open(counter_file, "w") as f:
         f.write(str(next_do))
     return f"DO{next_do:04d}"
- 
-# Initialize DO number if not already set
-if "do_no" not in st.session_state:
-    st.session_state.do_no = get_next_do_no()
- 
-# 🧹 Reset Form Function
+
+# Reset form by clearing session_state
 def reset_form():
-    # Reset item rows
     for i in range(1, 21):
         for key in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
-            session_key = f"{key}_{i}"
-            if session_key in st.session_state:
-                del st.session_state[session_key]
-    
-    # Reset footer
+            st.session_state.pop(f"{key}_{i}", None)
     for key in ["prepared", "checked", "approved", "time"]:
-        if key in st.session_state:
-            del st.session_state[key]
- 
-    # Reset DO number
+        st.session_state.pop(key, None)
     st.session_state.do_no = get_next_do_no()
- 
     st.rerun()
- 
-# ──────────────────────────────
-# Header Info
+
+# Initialize DO number
+if "do_no" not in st.session_state:
+    st.session_state.do_no = get_next_do_no()
+
+# Header
 st.subheader("FBK MANUFACTURING MALAYSIA")
 col1, col2, col3 = st.columns(3)
- 
 with col1:
     st.text_input("DO No", value=st.session_state.do_no, disabled=True)
- 
 with col2:
     date = st.date_input("Date", value=datetime.today())
- 
 with col3:
     from_to = st.selectbox("From → To", [
         "STORE → STORE",
@@ -67,13 +48,11 @@ with col3:
         "DP PACKING → LOGISTIC",
         "OFFICE → TPM"
     ])
- 
-# ──────────────────────────────
-# Item Input Section
+
+# Item input
 st.markdown("---")
 st.subheader("Item Details (up to 20 rows)")
 rows = []
- 
 for i in range(1, 21):
     with st.expander(f"Item Row {i}"):
         item = st.text_input(f"Scan or Enter Item {i}", key=f"item_{i}")
@@ -83,7 +62,7 @@ for i in range(1, 21):
         unit_ctn = st.text_input(f"Unit Packing (CTN) {i}", key=f"ctn_{i}")
         quantity = st.text_input(f"Quantity {i}", key=f"qty_{i}")
         remarks = st.text_input(f"Remarks {i}", key=f"remark_{i}")
- 
+
         if item:
             rows.append({
                 "Item": item,
@@ -94,17 +73,15 @@ for i in range(1, 21):
                 "Quantity": quantity,
                 "Remarks": remarks
             })
- 
-# ──────────────────────────────
-# Footer Info
+
+# Footer
 st.markdown("---")
 st.subheader("Footer Information")
 prepared = st.text_input("Prepared by", key="prepared")
 checked = st.text_input("Checked by", key="checked")
 approved = st.text_input("Approved by", key="approved")
 time_input = st.time_input("Time", key="time")
- 
-# ──────────────────────────────
+
 # Buttons
 col_submit, col_reset = st.columns([1, 1])
 with col_submit:
@@ -120,13 +97,18 @@ with col_submit:
             df["Checked By"] = checked
             df["Approved By"] = approved
             df["Time"] = time_input.strftime('%H:%M:%S')
- 
-            filename = f"do_{st.session_state.do_no}.csv"
+
+            output_folder = "do_output"
+            os.makedirs(output_folder, exist_ok=True)
+            filename = os.path.join(output_folder, f"do_{st.session_state.do_no}.csv")
             df.to_csv(filename, index=False)
- 
-            st.success(f"DO saved as {filename} ✅")
+
+            st.success(f"✅ Delivery Order {st.session_state.do_no} submitted successfully.")
+            st.info(f"Saved to `{filename}`")
             st.dataframe(df)
- 
+
+            reset_form()
+
 with col_reset:
     if st.button("🔄 Reset Form"):
         reset_form()
