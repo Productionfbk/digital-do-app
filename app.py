@@ -3,11 +3,45 @@ import pandas as pd
 from datetime import datetime
 import os
 
+# SET PAGE CONFIG MESTI PALING AWAL
 st.set_page_config(page_title="Delivery/Requisition Form", layout="wide")
 
-st.title("📦 FBK Delivery / Requisition Form")
+# --- User Credentials ---
+USER_CREDENTIALS = {
+    "firdaus": "D0499",
+    "vijaya": "D0228",
+    "asrin": "D0489",
+    "sazli": "D0039",
+    "Eddy": "D0290"
+}
 
-# Generate DO number
+# --- Login function ---
+def login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        st.subheader("🔐 Leader Login Required")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.success(f"✅ Welcome, {username}!")
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid username or password.")
+        st.stop()  # Stop further execution if not logged in
+    else:
+        # Show logout and user info
+        st.sidebar.write(f"👤 Logged in as: **{st.session_state.username}**")
+        if st.sidebar.button("Logout"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.experimental_rerun()
+
+# --- Delivery Order Number Generator ---
 def get_next_do_no():
     counter_file = "do_counter.txt"
     if not os.path.exists(counter_file):
@@ -20,7 +54,7 @@ def get_next_do_no():
         f.write(str(next_do))
     return f"DO{next_do:04d}"
 
-# Reset form by clearing session_state
+# --- Reset form ---
 def reset_form():
     for i in range(1, 21):
         for key in ["item", "ref", "cp", "set", "ctn", "qty", "remark"]:
@@ -28,14 +62,18 @@ def reset_form():
     for key in ["prepared", "checked", "approved", "time"]:
         st.session_state.pop(key, None)
     st.session_state.do_no = get_next_do_no()
-    st.rerun()
+    st.experimental_rerun()
+
+# --- MAIN ---
+login()  # call login first, stops if not logged in
 
 # Initialize DO number
 if "do_no" not in st.session_state:
     st.session_state.do_no = get_next_do_no()
 
-# Header
-st.subheader("FBK MANUFACTURING MALAYSIA")
+st.title("📦 FBK Delivery / Requisition Form")
+
+# Header input
 col1, col2, col3 = st.columns(3)
 with col1:
     st.text_input("DO No", value=st.session_state.do_no, disabled=True)
@@ -49,7 +87,6 @@ with col3:
         "OFFICE → TPM"
     ])
 
-# Item input
 st.markdown("---")
 st.subheader("Item Details (up to 20 rows)")
 rows = []
@@ -74,7 +111,6 @@ for i in range(1, 21):
                 "Remarks": remarks
             })
 
-# Footer
 st.markdown("---")
 st.subheader("Footer Information")
 prepared = st.text_input("Prepared by", key="prepared")
@@ -82,7 +118,6 @@ checked = st.text_input("Checked by", key="checked")
 approved = st.text_input("Approved by", key="approved")
 time_input = st.time_input("Time", key="time")
 
-# Buttons
 col_submit, col_reset = st.columns([1, 1])
 with col_submit:
     if st.button("✅ Submit DO Form", key="submit_do"):
