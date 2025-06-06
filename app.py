@@ -93,7 +93,7 @@ with st.form("do_form"):
             "Ctn": [0] * 20,
             "Quantity": [0] * 20
         })
-        st.rerun()
+        st.experimental_rerun()  # reload app, reset form
 
     # Handle Submit
     if submitted:
@@ -137,7 +137,7 @@ with st.form("do_form"):
             st.write("#### Items:")
             st.dataframe(df_to_save, use_container_width=True)
 
-            # Update session_state with current values
+            # Reset session_state variables
             st.session_state.do_number = generate_do_number()
             st.session_state.do_date = date.today()
             st.session_state.customer_name = ""
@@ -150,6 +150,8 @@ with st.form("do_form"):
                 "Ctn": [0] * 20,
                 "Quantity": [0] * 20
             })
+
+            st.experimental_rerun()  # reload app, auto-reset form
 
 # Divider
 st.markdown("---")
