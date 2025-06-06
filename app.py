@@ -3,15 +3,10 @@ import pandas as pd
 import os
 from datetime import date, datetime
 
-# Konfigurasi halaman
+# Set page config
 st.set_page_config(page_title="Digital DO Form - FBKM", layout="wide")
 
-# Tajuk utama
-st.title("🚚 Digital Delivery Order (DO) FBKM")
-
-# -------------------------------------------------------
-# Fungsi jana DO number secara auto: DO-0001, DO-0002...
-# -------------------------------------------------------
+# Auto-generate DO Number function
 def generate_do_number():
     csv_path = "do_data.csv"
     if os.path.exists(csv_path):
@@ -30,28 +25,16 @@ def generate_do_number():
             return "DO-0001"
     return "DO-0001"
 
-# Jana DO number
-do_number = generate_do_number()
-
-# -------------------------------------------------------
-# Borang Utama
-# -------------------------------------------------------
-with st.form("do_form"):
-    st.subheader("📄 Maklumat Delivery Order")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_input("DO Number", value=do_number, disabled=True)
-    with col2:
-        do_date = st.date_input("DO Date", value=date.today())
-
-    customer_name = st.text_input("Customer Name")
-
-    st.markdown("---")
-    st.subheader("📦 Item Details (maksimum 20 baris)")
-
-    # Sediakan template kosong untuk 20 item
-    default_items = {
+# Initialize session state variables once
+if "do_number" not in st.session_state:
+    st.session_state.do_number = generate_do_number()
+if "do_date" not in st.session_state:
+    st.session_state.do_date = date.today()
+if "customer_name" not in st.session_state:
+    st.session_state.customer_name = ""
+if "item_df" not in st.session_state:
+    # 20 rows default item dataframe
+    st.session_state.item_df = pd.DataFrame({
         "No.": list(range(1, 21)),
         "Item": [""] * 20,
         "MI Number": [""] * 20,
@@ -59,36 +42,68 @@ with st.form("do_form"):
         "Set": [0] * 20,
         "Ctn": [0] * 20,
         "Quantity": [0] * 20
-    }
-    item_df = pd.DataFrame(default_items)
+    })
 
-    # Papar borang table editable dengan index tersembunyi
+# Page Title
+st.title("🚚 Digital Delivery Order (DO) FBKM")
+
+# Main Form
+with st.form("do_form"):
+
+    st.subheader("📄 Maklumat Delivery Order")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input("DO Number", value=st.session_state.do_number, disabled=True)
+    with col2:
+        do_date = st.date_input("DO Date", value=st.session_state.do_date)
+
+    customer_name = st.text_input("Customer Name", value=st.session_state.customer_name)
+
+    st.markdown("---")
+    st.subheader("📦 Item Details (maksimum 20 baris)")
+
+    # Editable table with default from session_state.item_df
     edited_df = st.data_editor(
-        item_df,
+        st.session_state.item_df,
         num_rows="fixed",
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        key="item_editor"
     )
 
-    # Butang Submit & Clear
+    # Submit & Clear buttons in the form
     col_submit, col_clear = st.columns(2)
     with col_submit:
         submitted = st.form_submit_button("🚀 Submit DO")
     with col_clear:
-        reset = st.form_submit_button("🔄 Clear Form")
+        cleared = st.form_submit_button("🔄 Clear Form")
 
-    # Reset form bila tekan Clear
-    if reset:
-        st.experimental_rerun()
+    # Handle Clear
+    if cleared:
+        st.session_state.do_number = generate_do_number()
+        st.session_state.do_date = date.today()
+        st.session_state.customer_name = ""
+        st.session_state.item_df = pd.DataFrame({
+            "No.": list(range(1, 21)),
+            "Item": [""] * 20,
+            "MI Number": [""] * 20,
+            "C/P No.": [""] * 20,
+            "Set": [0] * 20,
+            "Ctn": [0] * 20,
+            "Quantity": [0] * 20
+        })
+        st.rerun()
 
-    # Bila user tekan Submit
+    # Handle Submit
     if submitted:
+        # Validate at least one item with Quantity > 0 and Item not empty
         valid_rows = []
         for _, row in edited_df.iterrows():
-            if row["Item"].strip() != "" and row["Quantity"] > 0:
+            if str(row["Item"]).strip() != "" and row["Quantity"] > 0:
                 valid_rows.append(row)
 
-        if not valid_rows:
+        if len(valid_rows) == 0:
             st.warning("⚠️ Sila isi sekurang-kurangnya satu item dengan kuantiti lebih daripada 0.")
         else:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -96,7 +111,7 @@ with st.form("do_form"):
             for row in valid_rows:
                 record = {
                     "Timestamp": timestamp,
-                    "DO Number": do_number,
+                    "DO Number": st.session_state.do_number,
                     "DO Date": do_date.strftime("%Y-%m-%d"),
                     "Customer Name": customer_name,
                     "No.": int(row["No."]),
@@ -116,18 +131,31 @@ with st.form("do_form"):
 
             st.success("✅ DO submitted and saved successfully!")
             st.markdown("### 📄 DO Summary:")
-            st.write(f"**DO Number:** {do_number}")
+            st.write(f"**DO Number:** {st.session_state.do_number}")
             st.write(f"**DO Date:** {do_date.strftime('%Y-%m-%d')}")
             st.write(f"**Customer Name:** {customer_name}")
             st.write("#### Items:")
             st.dataframe(df_to_save, use_container_width=True)
 
-# -------------------------------------------------------
-# Papar semua rekod yang pernah dihantar
-# -------------------------------------------------------
+            # Update session_state with current values
+            st.session_state.do_number = generate_do_number()
+            st.session_state.do_date = date.today()
+            st.session_state.customer_name = ""
+            st.session_state.item_df = pd.DataFrame({
+                "No.": list(range(1, 21)),
+                "Item": [""] * 20,
+                "MI Number": [""] * 20,
+                "C/P No.": [""] * 20,
+                "Set": [0] * 20,
+                "Ctn": [0] * 20,
+                "Quantity": [0] * 20
+            })
+
+# Divider
 st.markdown("---")
 st.subheader("📋 Semua Rekod DO")
 
+# Show all saved DO records if any
 csv_path = "do_data.csv"
 if os.path.exists(csv_path):
     try:
